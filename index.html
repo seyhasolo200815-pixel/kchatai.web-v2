@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>K-Chat AI - បញ្ញាសិប្បនិម្មិតកម្រិតខ្ពស់</title>
+    <meta name="description" content="K-Chat AI គឺជាបញ្ញាសិប្បនិម្មិតខ្មែរដ៏ឆ្លាតវៃ ឆ្លើយតបរហ័សទាន់ចិត្ត ដោះស្រាយលំហាត់ គណិត វិទ្យាសាស្ត្រ និងសរសេរកូដ" />
+    <meta property="og:title" content="K-Chat AI - បញ្ញាសិប្បនិម្មិតកម្រិតខ្ពស់" />
+    <meta property="og:description" content="K-Chat AI គឺជាបញ្ញាសិប្បនិម្មិតខ្មែរដ៏ឆ្លាតវៃ ឆ្លើយតបរហ័សទាន់ចិត្ត ដោះស្រាយលំហាត់ គណិត វិទ្យាសាស្ត្រ និងសរសេរកូដ" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        max-width: 100vw;
+        height: 100%;
+        height: 100dvh;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* បិទមិនឱ្យរុញទំព័រទាំងមូលចេញក្រៅ */
+        position: fixed;
+      }
+
+      /* ការពាររូបភាព និងអក្សរកុំឱ្យរុញធ្លាយទទឹង */
+      img, svg, video {
+        max-width: 100% !important;
+        height: auto;
+      }
+
+      p, span, div, pre, code {
+        max-width: 100%;
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+    </style>
+    <script>
+      // Prevent double-tap to zoom on iOS and mobile browsers
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function (event) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
+
+      // Lock iOS Safari gesture zoom (pinch-to-zoom)
+      document.addEventListener('gesturestart', function (e) {
+        e.preventDefault();
+      });
+      document.addEventListener('gesturechange', function (e) {
+        e.preventDefault();
+      });
+      document.addEventListener('gestureend', function (e) {
+        e.preventDefault();
+      });
+
+      // Prevent multi-touch pinch zoom
+      document.addEventListener('touchmove', function (event) {
+        if (event.touches.length > 1) {
+          event.preventDefault();
+        }
+      }, { passive: false });
+    </script>
+  </head>
+  <body class="bg-[#050B14] text-slate-100 antialiased selection:bg-blue-500/30 selection:text-blue-200">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

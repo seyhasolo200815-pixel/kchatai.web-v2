@@ -1,0 +1,6 @@
+{
+  "name": "SkyPro AI - ជំនួយការបញ្ញាសិប្បនិម្មិត",
+  "description": "SkyPro AI ជាជំនួយការបញ្ញាសិប្បនិម្មិត ដែលអាចជួយអ្នកក្នុងការស្វែងរកចំណេះដឹង សរសេរអត្ថបទ សរសេរកូដ បកប្រែ និងច្រើនទៀត",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
