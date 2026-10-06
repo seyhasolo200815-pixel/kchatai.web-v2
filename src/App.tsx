@@ -53,6 +53,176 @@ interface ChatSession {
   messages: Message[];
 }
 
+// K-Chat AI (Module 02) Text Generation Engine
+const fetchKChatMessage = async (userPrompt: string, chatHistory: any[]) => {
+  const payload = {
+    messages: [
+      {
+        role: "system",
+        content: "You are K-Chat AI, an ultra-smart, helpful, witty assistant. Provide clear, high-quality, text-only answers. NEVER output markdown images or img tags."
+      },
+      ...chatHistory.slice(-6).map((m: any) => ({
+        role: m.sender === 'user' || m.role === 'user' ? 'user' : 'assistant',
+        content: m.text || m.content || ''
+      })),
+      { role: "user", content: userPrompt }
+    ],
+    model: "openai-large", // 100% free and very stable
+    seed: Math.floor(Math.random() * 1000000)
+  };
+
+  try {
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim().length > 0 && !text.includes("Payment Required") && !text.includes('"status":402')) {
+        return text;
+      }
+    }
+  } catch (err) {
+    console.warn("Pollinations initial request notice:", err);
+  }
+
+  // Backup fallback to prevent HTTP 402: Payment Required error
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+  if (apiKey) {
+    try {
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: {
+              parts: [{
+                text: "You are K-Chat AI, an ultra-smart, helpful, witty assistant. Provide clear, high-quality, text-only answers in Khmer. NEVER output markdown images or img tags."
+              }]
+            },
+            contents: [
+              ...chatHistory.slice(-6).map((m: any) => ({
+                role: (m.sender === 'user' || m.role === 'user') ? 'user' : 'model',
+                parts: [{ text: m.text || m.content || '' }]
+              })),
+              { role: 'user', parts: [{ text: userPrompt }] }
+            ],
+            generationConfig: {
+              temperature: 0.5,
+              maxOutputTokens: 3000
+            }
+          })
+        }
+      );
+      if (geminiRes.ok) {
+        const geminiData = await geminiRes.json();
+        const geminiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (geminiText) return geminiText;
+      }
+    } catch (e) {
+      console.warn("Gemini backup error:", e);
+    }
+  }
+
+  return "សួស្តី! ខ្ញុំគឺ K-Chat AI ជំនួយការឆ្លាតវៃរបស់អ្នក។ តើខ្ញុំអាចជួយដោះស្រាយអ្វីបានខ្លះនៅថ្ងៃនេះ?";
+};
+
+// FIX VISION / IMAGE ATTACHMENT IN K-CHAT AI (MODULE 02)
+const sendKChatMessageWithImage = async (
+  userPrompt: string,
+  imageBase64OrUrl?: string,
+  chatHistory: any[] = []
+) => {
+  // Structure user content based on whether an image is attached
+  let userContent: any;
+  if (imageBase64OrUrl) {
+    userContent = [
+      { type: "text", text: userPrompt || "សូមជួយវិភាគ និងពិពណ៌នារូបភាពនេះឱ្យបានលម្អិត" },
+      { type: "image_url", image_url: { url: imageBase64OrUrl } }
+    ];
+  } else {
+    userContent = userPrompt;
+  }
+
+  const payload = {
+    messages: [
+      {
+        role: "system",
+        content: "You are K-Chat AI. You have advanced computer vision. Analyze and explain uploaded images clearly and deeply in natural Khmer. Keep responses strictly text/code only."
+      },
+      ...chatHistory.slice(-4).map((m: any) => ({
+        role: (m.sender === 'user' || m.role === 'user') ? 'user' : 'assistant',
+        content: m.text || m.content || ''
+      })),
+      { role: "user", content: userContent }
+    ],
+    model: "openai-large", // Multi-modal vision supported
+    seed: Math.floor(Math.random() * 1000000)
+  };
+
+  try {
+    const response = await fetch("https://text.pollinations.ai/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      const text = await response.text();
+      if (text && text.trim().length > 0 && !text.includes("Payment Required") && !text.includes('"status":402')) {
+        return text;
+      }
+    }
+    throw new Error("Vision API Error");
+  } catch (error) {
+    console.error("Chat error:", error);
+
+    // Backup Vision fallback
+    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+    if (apiKey) {
+      try {
+        const parts: any[] = [
+          { text: userPrompt || "សូមជួយវិភាគ និងពិពណ៌នារូបភាពនេះឱ្យបានលម្អិតជាភាសាខ្មែរ" }
+        ];
+        if (imageBase64OrUrl) {
+          const match = imageBase64OrUrl.match(/^data:([^;]+);base64,(.+)$/);
+          if (match) {
+            parts.push({
+              inlineData: {
+                mimeType: match[1],
+                data: match[2]
+              }
+            });
+          }
+        }
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: { temperature: 0.4, maxOutputTokens: 3000 }
+            })
+          }
+        );
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const geminiText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (geminiText) return geminiText;
+        }
+      } catch (e) {
+        console.warn("Vision fallback error:", e);
+      }
+    }
+
+    return "សុំទោស ខ្ញុំមិនអាចទាញទិន្នន័យពីរូបភាពនេះបានទេ។ សូមសាកល្បងម្ដងទៀត!";
+  }
+};
+
 export default function App() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
@@ -262,10 +432,9 @@ export default function App() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    // Generous fallback timeout (90s) only if network completely drops, allowing full long answers and code
     const timeoutId = setTimeout(() => {
       controller.abort();
-    }, 90000);
+    }, 60000);
 
     const userMessage: Message = {
       role: "user",
@@ -296,7 +465,7 @@ export default function App() {
       ? (promptToSend.slice(0, 24) || "ការវិភាគឯកសារ/រូបភាព") 
       : activeChat.title;
 
-    // Immediately show user message + streaming placeholder
+    // Immediately show user message + response placeholder
     const withReplyMessages = [...updatedMessages, { role: "assistant" as const, content: "" }];
 
     const newSessions = sessions.map((s) =>
@@ -310,74 +479,64 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      // Connect to fast streaming endpoint with AbortController signal
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify({
-          messages: updatedMessages.map(m => ({
-            role: m.role,
-            content: m.content,
-            attachments: m.attachments
-          })),
-          attachments: sentAttachments,
-        }),
-      });
+      // 1. Instant Flux Ultra-HD image generation without watermark if user asks to draw
+      if (isImgTask && sentAttachments.length === 0) {
+        const promptClean = encodeURIComponent(
+          promptToSend
+            .replace(/គូររូប|បង្កើតរូប|គូរ|ចង់បានរូប|draw|generate image|create image|picture of|photo of/gi, '')
+            .trim() || promptToSend
+        );
+        const highResImageUrl = `https://image.pollinations.ai/prompt/${promptClean}?width=1024&height=1024&nologo=true&enhance=true&model=flux`;
+        const replyContent = `នេះជារូបភាពដែលអ្នកបានស្នើសុំ (កម្រិតច្បាស់ HD)៖\n\n![${promptToSend}](${highResImageUrl})`;
 
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        let errMsg = errJson.error;
-        if (!errMsg) {
-          if (res.status === 404) {
-            errMsg = "មិនអាចស្វែងរក API Route (/api/chat) បានទេ (HTTP 404)។ សូមពិនិត្យមើល Vercel Serverless Function ឬ Environment Variables។";
-          } else if (res.status === 401) {
-            errMsg = "មិនទាន់កំណត់ API Key នៅឡើយទេ។ សូមកំណត់ GEMINI_API_KEY នៅក្នុង Vercel Project Settings។";
-          } else {
-            errMsg = `HTTP ${res.status}: បរាជ័យក្នុងការតភ្ជាប់`;
+        setSessions((prev) =>
+          prev.map((s) => {
+            if (s.id === activeChat.id) {
+              const msgs = [...s.messages];
+              msgs[msgs.length - 1] = {
+                role: "assistant",
+                content: replyContent,
+              };
+              return { ...s, messages: msgs };
+            }
+            return s;
+          })
+        );
+        setSessions((currentSessions) => {
+          localStorage.setItem("skypro_saved_sessions", JSON.stringify(currentSessions));
+          return currentSessions;
+        });
+        setIsLoading(false);
+        setIsGeneratingImage(false);
+        return;
+      }
+
+      // 2. Call K-Chat AI (Module 02) engine with Vision / Multi-modal support
+      const imageAttachment = sentAttachments.find(
+        (a) => a.mimeType?.startsWith("image/") || a.base64?.startsWith("data:image/")
+      );
+      const imageBase64OrUrl = imageAttachment ? imageAttachment.base64 : undefined;
+
+      const replyText = await sendKChatMessageWithImage(
+        promptToSend,
+        imageBase64OrUrl,
+        activeChat.messages
+      );
+      const cleanedReply = replyText.trim() || "សួស្តី! តើខ្ញុំអាចជួយអ្វីអ្នកបានខ្លះនៅថ្ងៃនេះ?";
+
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id === activeChat.id) {
+            const msgs = [...s.messages];
+            msgs[msgs.length - 1] = {
+              role: "assistant",
+              content: cleanedReply,
+            };
+            return { ...s, messages: msgs };
           }
-        }
-        throw new Error(errMsg);
-      }
-
-      if (!res.body) {
-        throw new Error("មិនអាចទទួល Response Stream បានទេ");
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let streamAccumulator = "";
-      let hasReceivedFirstToken = false;
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        if (chunk) {
-          streamAccumulator += chunk;
-
-          if (!hasReceivedFirstToken) {
-            hasReceivedFirstToken = true;
-            // Immediately append first token and clear thinking indicator the millisecond it arrives
-            setIsLoading(false);
-            setIsGeneratingImage(false);
-          }
-
-          setSessions((prev) =>
-            prev.map((s) => {
-              if (s.id === activeChat.id) {
-                const msgs = [...s.messages];
-                msgs[msgs.length - 1] = {
-                  role: "assistant",
-                  content: streamAccumulator,
-                };
-                return { ...s, messages: msgs };
-              }
-              return s;
-            })
-          );
-        }
-      }
+          return s;
+        })
+      );
 
       // Finalize and save
       setSessions((currentSessions) => {
@@ -392,14 +551,7 @@ export default function App() {
 
       if (err?.name === "AbortError") {
         errorMessage = "ការតភ្ជាប់ត្រូវបានកាត់ផ្តាច់ ឬផុតកំណត់។ សូមសាកល្បងម្តងទៀត។";
-      } else if (
-        rawMsg &&
-        !rawMsg.includes("{") &&
-        !rawMsg.includes("ApiError") &&
-        !rawMsg.includes("503") &&
-        !rawMsg.includes("429") &&
-        !rawMsg.includes("UNAVAILABLE")
-      ) {
+      } else if (rawMsg && !rawMsg.includes("{") && !rawMsg.includes("ApiError")) {
         errorMessage = rawMsg;
       }
 
@@ -409,15 +561,11 @@ export default function App() {
         prev.map((s) => {
           if (s.id === activeChat.id) {
             const msgs = [...s.messages];
-            const lastMsg = msgs[msgs.length - 1];
-            // If some content was already streamed, keep it!
-            if (!lastMsg.content) {
-              msgs[msgs.length - 1] = {
-                role: "assistant",
-                content: errorMessage,
-                isError: true,
-              };
-            }
+            msgs[msgs.length - 1] = {
+              role: "assistant",
+              content: errorMessage,
+              isError: true,
+            };
             return { ...s, messages: msgs };
           }
           return s;
@@ -798,7 +946,7 @@ export default function App() {
                   )}
                 </button>
 
-                {/* Clean Gemini Input */}
+                {/* ChatGPT / Gemini Style Input */}
                 <textarea
                   value={inputPrompt}
                   onChange={(e) => setInputPrompt(e.target.value)}
@@ -810,7 +958,7 @@ export default function App() {
                   }}
                   placeholder="សួរ K-Chat AI..."
                   rows={1}
-                  className="flex-1 bg-transparent border-none outline-none text-slate-800 placeholder-slate-400 resize-none max-h-36 py-2 px-1 text-sm sm:text-base leading-relaxed touch-manipulation"
+                  className="flex-1 bg-transparent border-none outline-none text-gray-900 placeholder-gray-400 resize-none max-h-44 py-2.5 sm:py-3 px-2 sm:px-3 text-[16px] leading-relaxed touch-manipulation font-normal"
                 />
 
                 {/* Send Button */}
